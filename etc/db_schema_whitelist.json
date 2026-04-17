@@ -187,5 +187,16 @@
         "constraint": {
             "PRIMARY": true
         }
+    },
+    "shubo_shipping_rate_limit": {
+        "column": {
+            "carrier_code": true,
+            "window_start": true,
+            "tokens_used": true,
+            "updated_at": true
+        },
+        "constraint": {
+            "PRIMARY": true
+        }
     }
 }

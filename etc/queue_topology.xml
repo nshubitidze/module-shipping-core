@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<!--
+    Copyright © Shubo. All rights reserved.
+    See LICENSE file for license details.
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework-message-queue:etc/topology.xsd">
+    <exchange name="shubo_shipping_events" type="topic" connection="amqp">
+        <binding id="shuboShippingDispatchFailedBinding"
+                 topic="shubo_shipping_dispatch_failed.#"
+                 destinationType="queue"
+                 destination="shubo_shipping_dispatch_failed_queue"/>
+    </exchange>
+</config>

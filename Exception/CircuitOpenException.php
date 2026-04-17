@@ -9,6 +9,7 @@ declare(strict_types=1);
 namespace Shubo\ShippingCore\Exception;
 
 use Magento\Framework\Exception\LocalizedException;
+use Magento\Framework\Phrase;
 
 /**
  * Thrown by the circuit breaker when a guarded call is rejected because
@@ -18,4 +19,11 @@ use Magento\Framework\Exception\LocalizedException;
  */
 class CircuitOpenException extends LocalizedException
 {
+    /**
+     * Factory that accepts a plain string and wraps it in a Phrase.
+     */
+    public static function create(string $message): self
+    {
+        return new self(new Phrase($message));
+    }
 }

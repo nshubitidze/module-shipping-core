@@ -412,4 +412,24 @@
         </index>
     </table>
 
+    <!-- ================================================================
+         6.8 shubo_shipping_rate_limit
+         Per-carrier token-bucket state (DB fallback path; Redis is primary).
+         ================================================================ -->
+    <table name="shubo_shipping_rate_limit" resource="default" engine="innodb"
+           comment="Rate Limit — per-carrier token-bucket window state (DB fallback)">
+        <column xsi:type="varchar" name="carrier_code" nullable="false" length="40"
+                comment="Carrier code (PK)"/>
+        <column xsi:type="timestamp" name="window_start" nullable="false" default="CURRENT_TIMESTAMP"
+                comment="Start of the current 60-second window (epoch-aligned)"/>
+        <column xsi:type="int" name="tokens_used" unsigned="true" nullable="false" default="0"
+                comment="Tokens consumed in the current window"/>
+        <column xsi:type="timestamp" name="updated_at" nullable="false" default="CURRENT_TIMESTAMP"
+                on_update="true" comment="Last update timestamp"/>
+
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="carrier_code"/>
+        </constraint>
+    </table>
+
 </schema>

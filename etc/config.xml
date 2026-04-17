@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<!--
+    Copyright © Shubo. All rights reserved.
+    See LICENSE file for license details.
+
+    Default values for the resilience primitives. Admin can override per
+    scope via system.xml (Phase 9). Inline defaults in the services mirror
+    these values so tests that don't load config still behave correctly.
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Store:etc/config.xsd">
+    <default>
+        <shubo_shipping>
+            <breaker>
+                <failure_threshold>5</failure_threshold>
+                <failure_window_seconds>120</failure_window_seconds>
+                <cooldown_seconds>60</cooldown_seconds>
+                <success_threshold>3</success_threshold>
+            </breaker>
+            <rate_limit>
+                <default_rpm>60</default_rpm>
+            </rate_limit>
+        </shubo_shipping>
+    </default>
+</config>

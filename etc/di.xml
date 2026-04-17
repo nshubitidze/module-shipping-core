@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<!--
+    Copyright © Shubo. All rights reserved.
+    See LICENSE file for license details.
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+
+    <!-- Api interface bindings (Phase 3 scope) -->
+    <preference for="Shubo\ShippingCore\Api\CircuitBreakerInterface"
+                type="Shubo\ShippingCore\Model\Resilience\CircuitBreaker"/>
+    <preference for="Shubo\ShippingCore\Api\RateLimiterInterface"
+                type="Shubo\ShippingCore\Model\Resilience\RateLimiter"/>
+    <preference for="Shubo\ShippingCore\Api\Data\CircuitBreakerStateInterface"
+                type="Shubo\ShippingCore\Model\Data\CircuitBreakerState"/>
+
+    <!-- Dedicated log channel: var/log/shubo_shipping.log. Mirrors the
+         Shubo_Payout pattern (app/code/Shubo/Payout/etc/di.xml:42-55). -->
+    <virtualType name="ShuboShippingCoreLogHandler"
+                 type="Magento\Framework\Logger\Handler\Base">
+        <arguments>
+            <argument name="fileName" xsi:type="string">/var/log/shubo_shipping.log</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="ShuboShippingCoreLogger"
+                 type="Magento\Framework\Logger\Monolog">
+        <arguments>
+            <argument name="handlers" xsi:type="array">
+                <item name="system" xsi:type="object">ShuboShippingCoreLogHandler</item>
+            </argument>
+        </arguments>
+    </virtualType>
+
+    <!-- Inject the dedicated logger into StructuredLogger. -->
+    <type name="Shubo\ShippingCore\Model\Logging\StructuredLogger">
+        <arguments>
+            <argument name="logger" xsi:type="object">ShuboShippingCoreLogger</argument>
+        </arguments>
+    </type>
+
+</config>
