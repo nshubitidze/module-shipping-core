@@ -44,6 +44,12 @@ class CircuitBreaker implements CircuitBreakerInterface
     private const DEFAULT_COOLDOWN = 60;
     private const DEFAULT_SUCCESS_THRESHOLD = 3;
 
+    private const VALID_STATES = [
+        CircuitBreakerStateInterface::STATE_CLOSED,
+        CircuitBreakerStateInterface::STATE_OPEN,
+        CircuitBreakerStateInterface::STATE_HALF_OPEN,
+    ];
+
     public function __construct(
         private readonly CircuitBreakerStateRepository $repository,
         private readonly EventManager $eventManager,
@@ -95,17 +101,9 @@ class CircuitBreaker implements CircuitBreakerInterface
 
     public function forceState(string $carrierCode, string $state, string $adminNote): void
     {
-        if (!in_array(
-            $state,
-            [
-                CircuitBreakerStateInterface::STATE_CLOSED,
-                CircuitBreakerStateInterface::STATE_OPEN,
-                CircuitBreakerStateInterface::STATE_HALF_OPEN,
-            ],
-            true,
-        )) {
+        if (!in_array($state, self::VALID_STATES, true)) {
             throw new \InvalidArgumentException(
-                sprintf('Invalid circuit breaker state "%s".', $state),
+                sprintf('Invalid circuit breaker state "%s".', $state)
             );
         }
 
