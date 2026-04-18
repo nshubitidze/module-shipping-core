@@ -4,9 +4,11 @@ parameters:
     level: 8
     paths:
         - Api
+        - Controller
         - Exception
         - Model
         - Observer
+        - Ui
     excludePaths:
         - Test/*
         - vendor/*

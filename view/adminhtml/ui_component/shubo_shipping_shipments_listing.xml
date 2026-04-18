@@ -1,0 +1,116 @@
+<?xml version = "1.0"?>
+<!--
+    Copyright © Shubo. All rights reserved.
+    See LICENSE file for license details.
+
+    Minimum admin shipments grid. Columns are locked by the demo scope:
+    shipment_id, order increment (joined from sales_order), merchant_id,
+    carrier_code, status, carrier_tracking_id, created_at.
+
+    NO detail view, NO mass actions, NO filters beyond the default toolbar —
+    row actions dispatch the four shubo_shipping_* events that Phase 8
+    Payout observers subscribe to.
+-->
+<listing xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Ui:etc/ui_configuration.xsd">
+
+    <argument name="data" xsi:type="array">
+        <item name="js_config" xsi:type="array">
+            <item name="provider" xsi:type="string">shubo_shipping_shipments_listing.shubo_shipping_shipments_listing_data_source</item>
+        </item>
+    </argument>
+
+    <settings>
+        <spinner>shubo_shipping_shipments_columns</spinner>
+        <deps>
+            <dep>shubo_shipping_shipments_listing.shubo_shipping_shipments_listing_data_source</dep>
+        </deps>
+    </settings>
+
+    <dataSource name="shubo_shipping_shipments_listing_data_source" component="Magento_Ui/js/grid/provider">
+        <settings>
+            <storageConfig>
+                <param name="indexField" xsi:type="string">shipment_id</param>
+            </storageConfig>
+            <updateUrl path="mui/index/render"/>
+        </settings>
+        <aclResource>Shubo_ShippingCore::shipments</aclResource>
+        <dataProvider class="Shubo\ShippingCore\Ui\DataProvider\ShipmentsGridDataProvider"
+                      name="shubo_shipping_shipments_listing_data_source">
+            <settings>
+                <requestFieldName>shipment_id</requestFieldName>
+                <primaryFieldName>shipment_id</primaryFieldName>
+            </settings>
+        </dataProvider>
+    </dataSource>
+
+    <listingToolbar name="listing_top">
+        <settings>
+            <sticky>false</sticky>
+        </settings>
+        <paging name="listing_paging"/>
+    </listingToolbar>
+
+    <columns name="shubo_shipping_shipments_columns">
+        <settings>
+            <editorConfig>
+                <param name="enabled" xsi:type="boolean">false</param>
+            </editorConfig>
+        </settings>
+
+        <column name="shipment_id">
+            <settings>
+                <label translate="true">ID</label>
+                <sorting>desc</sorting>
+            </settings>
+        </column>
+
+        <column name="order_increment_id">
+            <settings>
+                <bodyTmpl>Shubo_Merchant/grid/cells/ellipsis-text</bodyTmpl>
+                <label translate="true">Order #</label>
+            </settings>
+        </column>
+
+        <column name="merchant_id">
+            <settings>
+                <label translate="true">Merchant ID</label>
+            </settings>
+        </column>
+
+        <column name="carrier_code">
+            <settings>
+                <label translate="true">Carrier</label>
+            </settings>
+        </column>
+
+        <column name="status">
+            <settings>
+                <label translate="true">Status</label>
+            </settings>
+        </column>
+
+        <column name="carrier_tracking_id">
+            <settings>
+                <bodyTmpl>Shubo_Merchant/grid/cells/ellipsis-text</bodyTmpl>
+                <label translate="true">Tracking</label>
+            </settings>
+        </column>
+
+        <column name="created_at" class="Magento\Ui\Component\Listing\Columns\Date"
+                component="Magento_Ui/js/grid/columns/date">
+            <settings>
+                <dataType>date</dataType>
+                <label translate="true">Created</label>
+            </settings>
+        </column>
+
+        <actionsColumn name="actions" class="Shubo\ShippingCore\Ui\Component\Listing\Column\ShipmentActions">
+            <settings>
+                <indexField>shipment_id</indexField>
+                <label translate="true">Actions</label>
+            </settings>
+        </actionsColumn>
+    </columns>
+
+</listing>

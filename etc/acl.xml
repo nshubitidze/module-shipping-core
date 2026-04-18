@@ -1,0 +1,32 @@
+<?xml version = "1.0"?>
+<!--
+    Copyright © Shubo. All rights reserved.
+    See LICENSE file for license details.
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Acl/etc/acl.xsd">
+    <acl>
+        <resources>
+            <resource id="Magento_Backend::admin">
+                <!--
+                    Shipping sub-tree nests under the existing Duka menu root
+                    owned by Shubo_Merchant (see app/code/Shubo/Merchant/etc/acl.xml).
+                    Nesting pattern mirrors Shubo_Payout::payout in
+                    app/code/Shubo/Payout/etc/acl.xml.
+                -->
+                <resource id="Shubo_Merchant::duka">
+                    <resource id="Shubo_ShippingCore::shipping"
+                              title="Shipping"
+                              sortOrder="45">
+                        <resource id="Shubo_ShippingCore::shipments"
+                                  title="View Shipments"
+                                  sortOrder="10"/>
+                        <resource id="Shubo_ShippingCore::shipments_manage"
+                                  title="Manage Shipment Status"
+                                  sortOrder="20"/>
+                    </resource>
+                </resource>
+            </resource>
+        </resources>
+    </acl>
+</config>

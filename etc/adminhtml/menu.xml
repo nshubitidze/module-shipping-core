@@ -1,0 +1,29 @@
+<?xml version = "1.0"?>
+<!--
+    Copyright © Shubo. All rights reserved.
+    See LICENSE file for license details.
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Backend:etc/menu.xsd">
+    <menu>
+        <!--
+            Shipping parent under the existing Duka top-level menu (owned by
+            Shubo_Merchant). Mirrors the Shubo_Payout::finance submenu pattern
+            at app/code/Shubo/Payout/etc/adminhtml/menu.xml.
+        -->
+        <add id="Shubo_ShippingCore::shipping"
+             title="Shipping"
+             module="Shubo_ShippingCore"
+             sortOrder="45"
+             parent="Shubo_Merchant::duka"
+             resource="Shubo_ShippingCore::shipping"/>
+
+        <add id="Shubo_ShippingCore::shipments"
+             title="Shipments"
+             module="Shubo_ShippingCore"
+             sortOrder="10"
+             parent="Shubo_ShippingCore::shipping"
+             action="shubo_shipping_admin/shipments/index"
+             resource="Shubo_ShippingCore::shipments"/>
+    </menu>
+</config>

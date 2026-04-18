@@ -64,4 +64,19 @@ namespace Magento\Shipping\Model\Rate {
         }
     }
 }
+
+namespace Shubo\ShippingCore\Model\ResourceModel\Shipment {
+    if (!\class_exists(CollectionFactory::class, false)) {
+        class CollectionFactory
+        {
+            /**
+             * @param array<string, mixed> $data
+             */
+            public function create(array $data = []): object
+            {
+                return new \stdClass();
+            }
+        }
+    }
+}
 // phpcs:enable
