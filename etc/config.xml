@@ -20,6 +20,9 @@
             <rate_limit>
                 <default_rpm>60</default_rpm>
             </rate_limit>
+            <poller>
+                <max_shipments_per_run>500</max_shipments_per_run>
+            </poller>
         </shubo_shipping>
 
         <!--

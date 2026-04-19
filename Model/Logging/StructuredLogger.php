@@ -100,6 +100,54 @@ class StructuredLogger
     }
 
     /**
+     * Record a webhook dispatcher decision (accepted / rejected /
+     * duplicate / unknown_carrier / shipment_not_found / unhandled).
+     * Single helper so every webhook log line has the same `event` key
+     * shape.
+     *
+     * @param array<string, mixed> $context
+     */
+    public function logWebhook(string $event, array $context = []): void
+    {
+        $this->logger->info(
+            'shubo_shipping.webhook',
+            $this->mergeContext(
+                ['event' => $event],
+                $context,
+            ),
+        );
+    }
+
+    /**
+     * Record a cron-job run outcome. Fields include the job name, a numeric
+     * primary count (shipments polled, breakers reaped), and arbitrary
+     * additional context.
+     *
+     * Use this instead of {@see self::logRateLimit()} for cron-run
+     * accounting — the rate-limit helper's "carrier_code" slot would be
+     * populated with a non-carrier string and mislead anyone filtering
+     * var/log/shubo_shipping.log by carrier.
+     *
+     * @param string               $jobName  e.g. "shubo_shipping.poller.run".
+     * @param int                  $count    Primary numeric outcome for this run.
+     * @param array<string, mixed> $context  Additional structured context.
+     */
+    public function logCronRun(string $jobName, int $count, array $context = []): void
+    {
+        $this->logger->info(
+            'shubo_shipping.cron_run',
+            $this->mergeContext(
+                [
+                    'event' => 'cron_run',
+                    'job' => $jobName,
+                    'count' => $count,
+                ],
+                $context,
+            ),
+        );
+    }
+
+    /**
      * @param array<string, mixed> $base
      * @param array<string, mixed> $extra
      * @return array<string, mixed>

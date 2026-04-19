@@ -71,4 +71,39 @@ class CircuitBreakerStateRepository
         }
         return $state;
     }
+
+    /**
+     * Return all OPEN state rows whose cooldown window has elapsed.
+     *
+     * Used by {@see \Shubo\ShippingCore\Cron\ReapCircuitBreakers} to proactively
+     * flip expired breakers to HALF_OPEN so the next carrier call becomes the
+     * trial probe. Without this cron, a breaker only transitions lazily when a
+     * caller invokes {@see \Shubo\ShippingCore\Api\CircuitBreakerInterface::execute()}
+     * — which never happens for a fully idle carrier. Reaping keeps the
+     * admin dashboard's "open" count accurate.
+     *
+     * @param string $nowGmt GMT timestamp formatted as `Y-m-d H:i:s`.
+     * @return list<CircuitBreakerStateInterface>
+     */
+    public function findExpiredOpenStates(string $nowGmt): array
+    {
+        $connection = $this->resource->getConnection();
+        if ($connection === false) {
+            return [];
+        }
+        $select = $connection->select()
+            ->from($this->resource->getMainTable())
+            ->where(CircuitBreakerStateInterface::FIELD_STATE . ' = ?', CircuitBreakerStateInterface::STATE_OPEN)
+            ->where(CircuitBreakerStateInterface::FIELD_COOLDOWN_UNTIL . ' <= ?', $nowGmt);
+        $rows = $connection->fetchAll($select);
+
+        $result = [];
+        foreach ($rows as $row) {
+            /** @var CircuitBreakerState $state */
+            $state = $this->factory->create();
+            $state->setData($row);
+            $result[] = $state;
+        }
+        return $result;
+    }
 }

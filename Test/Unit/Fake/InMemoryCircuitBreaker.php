@@ -42,4 +42,13 @@ class InMemoryCircuitBreaker implements CircuitBreakerInterface
     {
         $this->states[$carrierCode] = $state;
     }
+
+    public function reapExpired(): int
+    {
+        // In-memory fake has no cooldown_until column — the real reap logic
+        // is covered by {@see \Shubo\ShippingCore\Test\Unit\Model\Resilience\CircuitBreakerTest}.
+        // Returning 0 keeps the interface contract honest without pretending
+        // to simulate expiry semantics the fake cannot model.
+        return 0;
+    }
 }

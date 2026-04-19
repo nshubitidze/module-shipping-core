@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<!--
+    Copyright © Shubo. All rights reserved.
+    See LICENSE file for license details.
+
+    Phase 5 cron jobs. See design doc §10.4.
+
+    Scope note: `shubo_shipping_scan_invoices` and `shubo_shipping_schema_drift`
+    are deferred to Phase 10 — they require the invoice ingestion pipeline
+    (§8) and schema-drift probe (§14) which do not land in this module until
+    later phases.
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Cron:etc/crontab.xsd">
+    <group id="shubo_shipping">
+        <job name="shubo_shipping_poll"
+             instance="Shubo\ShippingCore\Cron\RunPoller"
+             method="execute">
+            <schedule>*/5 * * * *</schedule>
+        </job>
+        <job name="shubo_shipping_reap_breakers"
+             instance="Shubo\ShippingCore\Cron\ReapCircuitBreakers"
+             method="execute">
+            <schedule>*/10 * * * *</schedule>
+        </job>
+    </group>
+</config>

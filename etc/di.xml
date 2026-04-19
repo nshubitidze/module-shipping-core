@@ -31,6 +31,21 @@
                 type="Shubo\ShippingCore\Model\Carrier\RateQuoteService"/>
 
     <!--
+        Phase 5a: Tracking poller.
+
+        TODO(Phase 5b / Phase 4 gap): the concrete
+        Shubo\ShippingCore\Api\ShipmentEventRepositoryInterface implementation
+        and Shubo\ShippingCore\Model\Data\ShipmentEvent are not yet in this
+        module. A follow-up task must land
+        `Shubo\ShippingCore\Model\Shipment\ShipmentEventRepository` plus the
+        concrete ShipmentEvent AbstractModel + resource before the cron can
+        execute at runtime. See design doc §7.12. Unit tests cover the poller
+        via interface mocks, which is why this phase is still shippable.
+    -->
+    <preference for="Shubo\ShippingCore\Api\TrackingPollerInterface"
+                type="Shubo\ShippingCore\Model\Tracking\TrackingPoller"/>
+
+    <!--
         Carrier registry composition — adapter modules register themselves
         by appending to the `gateways` / `capabilities` arrays from their
         own di.xml (see design doc section 7.3). Core ships the built-in

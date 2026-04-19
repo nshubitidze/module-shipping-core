@@ -99,6 +99,42 @@ class CircuitBreaker implements CircuitBreakerInterface
         return $this->repository->getByCarrierCode($carrierCode)->getState();
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * Implementation note: fully idle carriers (e.g. a Trackings.ge mailbox
+     * that sees no new shipments overnight) would otherwise stay "open" on
+     * admin dashboards long after they have recovered, because
+     * {@see self::execute()} only performs the transition on the next guarded
+     * call. Called from {@see \Shubo\ShippingCore\Cron\ReapCircuitBreakers}
+     * every 10 minutes.
+     */
+    public function reapExpired(): int
+    {
+        $nowTs = $this->nowTs();
+        $nowGmt = $this->formatTs($nowTs);
+        $expired = $this->repository->findExpiredOpenStates($nowGmt);
+        $reaped = 0;
+        foreach ($expired as $state) {
+            $previous = $state->getState();
+            if ($previous !== CircuitBreakerStateInterface::STATE_OPEN) {
+                // Row changed state between query and loop — skip.
+                continue;
+            }
+            $state->setState(CircuitBreakerStateInterface::STATE_HALF_OPEN);
+            $state->setSuccessCountSinceHalfopen(0);
+            $this->repository->save($state);
+            $this->logger->logBreakerTransition(
+                $state->getCarrierCode(),
+                $previous,
+                CircuitBreakerStateInterface::STATE_HALF_OPEN,
+                ['reason' => 'cron_reap'],
+            );
+            $reaped++;
+        }
+        return $reaped;
+    }
+
     public function forceState(string $carrierCode, string $state, string $adminNote): void
     {
         if (!in_array($state, self::VALID_STATES, true)) {

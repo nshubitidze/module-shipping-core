@@ -48,4 +48,19 @@ interface CircuitBreakerInterface
      * @return void
      */
     public function forceState(string $carrierCode, string $state, string $adminNote): void;
+
+    /**
+     * Proactively flip OPEN breakers whose cooldown has elapsed to HALF_OPEN.
+     *
+     * {@see self::execute()} already performs this transition lazily on the
+     * next guarded call, but fully idle carriers would otherwise stay "open"
+     * on admin dashboards long after they have recovered. Called by the
+     * `shubo_shipping_reap_breakers` cron (design-doc §10.4).
+     *
+     * Implementations must iterate the OPEN rows whose `cooldown_until <= now`
+     * and flip each to HALF_OPEN, returning the total count reaped.
+     *
+     * @return int Number of breakers reaped.
+     */
+    public function reapExpired(): int;
 }
