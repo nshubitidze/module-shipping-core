@@ -43,8 +43,6 @@ use Shubo\ShippingCore\Model\Webhook\WebhookDispatcher;
  */
 class Receive implements HttpPostActionInterface, CsrfAwareActionInterface
 {
-    private const MAX_BODY_BYTES = 1_048_576;
-
     private const PATH_SEGMENT = 'webhook';
 
     public function __construct(
@@ -61,7 +59,7 @@ class Receive implements HttpPostActionInterface, CsrfAwareActionInterface
         $raw = $this->rawFactory->create();
 
         $carrierCode = $this->extractCarrierCode();
-        $body = $this->readBody();
+        $body = $this->readBody($carrierCode);
         $headers = $this->readHeaders();
 
         if ($carrierCode === '') {
@@ -109,6 +107,20 @@ class Receive implements HttpPostActionInterface, CsrfAwareActionInterface
         return null;
     }
 
+    /**
+     * Accept the request without CSRF validation.
+     *
+     * Returning `true` here is deliberate: this endpoint receives
+     * server-to-server webhook deliveries from carriers (Wolt, Omniva, etc.)
+     * which have no session, no form key, and no way to carry a CSRF token.
+     * Authenticity is instead established by each handler's own signature /
+     * HMAC verification inside {@see WebhookDispatcher::dispatch()}, so
+     * skipping Magento's CSRF machinery does not weaken the security model —
+     * it just picks the right tool for the transport.
+     *
+     * Mirrors the pattern already used in Shubo_BogPayment's payment
+     * callback controller.
+     */
     public function validateForCsrf(RequestInterface $request): ?bool
     {
         return true;
@@ -138,15 +150,24 @@ class Receive implements HttpPostActionInterface, CsrfAwareActionInterface
     }
 
     /**
-     * Read the raw request body and cap it at {@see self::MAX_BODY_BYTES}.
-     * This prevents a rogue / misconfigured carrier from exhausting memory
-     * via a multi-megabyte payload.
+     * Read the raw request body and cap it at
+     * {@see WebhookDispatcher::MAX_RAW_BODY_BYTES}. Prevents a rogue or
+     * misconfigured carrier from exhausting memory via a multi-megabyte
+     * payload. Emits `webhook_body_truncated` when the cap fires so ops can
+     * notice carriers sending oversized deliveries.
      */
-    private function readBody(): string
+    private function readBody(string $carrierCode): string
     {
         $body = (string)$this->request->getContent();
-        if (strlen($body) > self::MAX_BODY_BYTES) {
-            return substr($body, 0, self::MAX_BODY_BYTES);
+        $originalSize = strlen($body);
+        if ($originalSize > WebhookDispatcher::MAX_RAW_BODY_BYTES) {
+            $this->logger->logWebhook('webhook_body_truncated', [
+                'carrier_code' => $carrierCode,
+                'original_size' => $originalSize,
+                'capped_size' => WebhookDispatcher::MAX_RAW_BODY_BYTES,
+                'entrypoint' => 'frontend',
+            ]);
+            return substr($body, 0, WebhookDispatcher::MAX_RAW_BODY_BYTES);
         }
         return $body;
     }

@@ -43,6 +43,16 @@ use Shubo\ShippingCore\Model\Logging\StructuredLogger;
  */
 class WebhookDispatcher
 {
+    /**
+     * Shared cap on the raw request body size that carrier webhook entrypoints
+     * will read before handing off to {@see self::dispatch()}. Kept here so the
+     * frontend controller ({@see \Shubo\ShippingCore\Controller\Webhook\Receive})
+     * and the REST entrypoint ({@see WebhookReceiver}) enforce exactly the same
+     * budget and any future tuning lives in one place. Bumping this value
+     * affects memory exposure for every carrier simultaneously.
+     */
+    public const MAX_RAW_BODY_BYTES = 1_048_576;
+
     private const EVENT_STATUS_CHANGED = 'shubo_shipping_shipment_status_changed';
     private const SOURCE_WEBHOOK = 'webhook';
 

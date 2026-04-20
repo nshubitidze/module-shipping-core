@@ -14,6 +14,7 @@ use Magento\Framework\Webapi\Exception as WebapiException;
 use Magento\Framework\Webapi\Rest\Request as RestRequest;
 use Shubo\ShippingCore\Api\Data\Dto\DispatchResult;
 use Shubo\ShippingCore\Api\WebhookReceiverInterface;
+use Shubo\ShippingCore\Model\Logging\StructuredLogger;
 
 /**
  * REST-route wrapper around {@see WebhookDispatcher}.
@@ -25,14 +26,19 @@ use Shubo\ShippingCore\Api\WebhookReceiverInterface;
  *
  * Successful / duplicate dispatches return the raw status string so the
  * webapi serializer has a simple JSON value to emit.
+ *
+ * Log symmetry: every dispatch outcome goes through
+ * {@see StructuredLogger::logWebhook()} with the same event-name vocabulary
+ * used by {@see \Shubo\ShippingCore\Controller\Webhook\Receive}, so
+ * `var/log/shubo_shipping.log` lets ops filter by `event` across both
+ * entrypoints without knowing which one served a given request.
  */
 class WebhookReceiver implements WebhookReceiverInterface
 {
-    private const MAX_BODY_BYTES = 1_048_576;
-
     public function __construct(
         private readonly WebhookDispatcher $dispatcher,
         private readonly RestRequest $request,
+        private readonly StructuredLogger $logger,
     ) {
     }
 
@@ -41,13 +47,42 @@ class WebhookReceiver implements WebhookReceiverInterface
      */
     public function receive(string $carrierCode): string
     {
-        $body = (string)$this->request->getContent();
-        if (strlen($body) > self::MAX_BODY_BYTES) {
-            $body = substr($body, 0, self::MAX_BODY_BYTES);
+        $rawBody = (string)$this->request->getContent();
+        $originalSize = strlen($rawBody);
+        if ($originalSize > WebhookDispatcher::MAX_RAW_BODY_BYTES) {
+            $body = substr($rawBody, 0, WebhookDispatcher::MAX_RAW_BODY_BYTES);
+            $this->logger->logWebhook('webhook_rest_body_truncated', [
+                'carrier_code' => $carrierCode,
+                'original_size' => $originalSize,
+                'capped_size' => WebhookDispatcher::MAX_RAW_BODY_BYTES,
+            ]);
+        } else {
+            $body = $rawBody;
         }
 
         $headers = $this->readHeaders();
-        $result = $this->dispatcher->dispatch($carrierCode, $body, $headers);
+
+        try {
+            $result = $this->dispatcher->dispatch($carrierCode, $body, $headers);
+        } catch (\Throwable $e) {
+            $this->logger->logWebhook('webhook_unhandled_exception', [
+                'carrier_code' => $carrierCode,
+                'body_size' => strlen($body),
+                'exception_class' => $e::class,
+                'exception_message' => $e->getMessage(),
+                'entrypoint' => 'rest',
+            ]);
+            throw $e;
+        }
+
+        $this->logger->logWebhook('webhook_received', [
+            'carrier_code' => $carrierCode,
+            'body_size' => strlen($body),
+            'dispatch_status' => $result->status,
+            'external_event_id' => $result->externalEventId,
+            'reason' => $result->reason,
+            'entrypoint' => 'rest',
+        ]);
 
         return match ($result->status) {
             DispatchResult::STATUS_UNKNOWN_CARRIER => throw new WebapiException(
