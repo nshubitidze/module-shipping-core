@@ -32,13 +32,33 @@
     <preference for="Shubo\ShippingCore\Api\ShipmentEventRepositoryInterface"
                 type="Shubo\ShippingCore\Model\Shipment\ShipmentEventRepository"/>
 
-    <!-- Phase 6: Rate quote service (carrier-agnostic aggregator) -->
+    <!--
+        Phase 6: Rate quote service (carrier-agnostic aggregator).
+
+        Wrapped in a 10-minute read-through cache (design doc §12.4) keyed by
+        origin + destination + parcel + merchant. Cache misses delegate to
+        the raw aggregator; cache read/write failures fall through silently
+        so a Redis outage can never block checkout.
+    -->
+    <virtualType name="ShuboShippingRawRateQuoteService"
+                 type="Shubo\ShippingCore\Model\Carrier\RateQuoteService"/>
     <preference for="Shubo\ShippingCore\Api\RateQuoteServiceInterface"
-                type="Shubo\ShippingCore\Model\Carrier\RateQuoteService"/>
+                type="Shubo\ShippingCore\Model\Carrier\CachedRateQuoteService"/>
+    <type name="Shubo\ShippingCore\Model\Carrier\CachedRateQuoteService">
+        <arguments>
+            <argument name="inner" xsi:type="object">ShuboShippingRawRateQuoteService</argument>
+        </arguments>
+    </type>
 
     <!-- Phase 5a: Tracking poller. -->
     <preference for="Shubo\ShippingCore\Api\TrackingPollerInterface"
                 type="Shubo\ShippingCore\Model\Tracking\TrackingPoller"/>
+
+    <!-- Phase 10: Dead-letter repository (durable DLQ sink). -->
+    <preference for="Shubo\ShippingCore\Api\Data\DeadLetterEntryInterface"
+                type="Shubo\ShippingCore\Model\Data\DeadLetterEntry"/>
+    <preference for="Shubo\ShippingCore\Api\DeadLetterRepositoryInterface"
+                type="Shubo\ShippingCore\Model\Resilience\DeadLetterRepository"/>
 
     <!--
         Carrier registry composition — adapter modules register themselves
@@ -62,12 +82,45 @@
         </arguments>
     </type>
 
+    <!--
+        Phase 10: CLI commands.
+
+        MUST bind on `CommandListInterface` not the concrete `CommandList`.
+        Binding on the concrete class causes Magento's ObjectManager to
+        eagerly resolve the full command dependency graph during
+        `setup:install`, which in turn resolves TransportBuilder /
+        StoreManager / the website patch — and crashes on a cold install.
+        See KNOWN_ISSUES.md BUG-SETUP-1 Symptom 2 (2026-04-20).
+    -->
+    <type name="Magento\Framework\Console\CommandListInterface">
+        <arguments>
+            <argument name="commands" xsi:type="array">
+                <item name="shubo_shipping_poll"
+                      xsi:type="object">Shubo\ShippingCore\Console\Command\PollCommand</item>
+                <item name="shubo_shipping_dlq_list"
+                      xsi:type="object">Shubo\ShippingCore\Console\Command\DlqListCommand</item>
+                <item name="shubo_shipping_dlq_reprocess"
+                      xsi:type="object">Shubo\ShippingCore\Console\Command\DlqReprocessCommand</item>
+                <item name="shubo_shipping_schema_drift"
+                      xsi:type="object">Shubo\ShippingCore\Console\Command\SchemaDriftCommand</item>
+            </argument>
+        </arguments>
+    </type>
+
     <!-- Dedicated log channel: var/log/shubo_shipping.log. Mirrors the
          Shubo_Payout pattern (app/code/Shubo/Payout/etc/di.xml:42-55). -->
     <virtualType name="ShuboShippingCoreLogHandler"
                  type="Magento\Framework\Logger\Handler\Base">
         <arguments>
-            <argument name="fileName" xsi:type="string">/var/log/shubo_shipping.log</argument>
+            <!--
+                Relative path is resolved by Monolog's Base handler against
+                Magento's BP . '/var/log/' so php-fpm writes under the project
+                root (see \Magento\Framework\Logger\Handler\Base::__construct).
+                An absolute '/var/log/...' breaks on Hetzner where the system
+                /var/log is not writable by www-data and every StructuredLogger
+                call is silently dropped. Fix for BUG-SHIPPING-LOG-1.
+            -->
+            <argument name="fileName" xsi:type="string">var/log/shubo_shipping.log</argument>
         </arguments>
     </virtualType>
     <virtualType name="ShuboShippingCoreLogger"
