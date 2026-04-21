@@ -198,5 +198,28 @@
         "constraint": {
             "PRIMARY": true
         }
+    },
+    "shubo_shipping_dead_letter": {
+        "column": {
+            "dlq_id": true,
+            "source": true,
+            "carrier_code": true,
+            "shipment_id": true,
+            "payload_json": true,
+            "error_class": true,
+            "error_message": true,
+            "failed_at": true,
+            "reprocessed_at": true,
+            "reprocess_attempts": true
+        },
+        "index": {
+            "SHUBO_SHIPPING_DEAD_LETTER_SOURCE_FAILED_AT": true,
+            "SHUBO_SHIPPING_DEAD_LETTER_CARRIER_CODE": true,
+            "SHUBO_SHIPPING_DEAD_LETTER_REPROCESSED_AT": true
+        },
+        "constraint": {
+            "PRIMARY": true,
+            "SHUBO_SHIPPING_DEAD_LETTER_SHIPMENT_ID": true
+        }
     }
 }

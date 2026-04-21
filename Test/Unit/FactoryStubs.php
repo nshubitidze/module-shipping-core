@@ -253,4 +253,150 @@ namespace Shubo\ShippingCore\Api\Data {
     }
 }
 
+namespace Shubo\ShippingCore\Model\ResourceModel\DeadLetterEntry {
+    if (!\class_exists(CollectionFactory::class, false)) {
+        class CollectionFactory
+        {
+            /**
+             * @param array<string, mixed> $data
+             */
+            public function create(array $data = []): object
+            {
+                return new \stdClass();
+            }
+        }
+    }
+}
+
+namespace Shubo\ShippingCore\Api\Data {
+    if (!\class_exists(DeadLetterEntryInterfaceFactory::class, false)) {
+        /**
+         * Stub for the Magento-generated factory for DeadLetterEntryInterface.
+         * Returns a fresh in-memory implementation so tests for
+         * {@see \Shubo\ShippingCore\Model\Resilience\DeadLetterPublisher} can
+         * exercise the full write path without a live Magento boot.
+         */
+        class DeadLetterEntryInterfaceFactory
+        {
+            /**
+             * @param array<string, mixed> $data
+             */
+            public function create(array $data = []): DeadLetterEntryInterface
+            {
+                return new class implements DeadLetterEntryInterface {
+                    private ?int $dlqId = null;
+                    private string $source = '';
+                    private ?string $carrierCode = null;
+                    private ?int $shipmentId = null;
+                    /** @var array<string, mixed> */
+                    private array $payload = [];
+                    private string $errorClass = '';
+                    private string $errorMessage = '';
+                    private ?string $failedAt = null;
+                    private ?string $reprocessedAt = null;
+                    private int $reprocessAttempts = 0;
+
+                    public function getDlqId(): ?int
+                    {
+                        return $this->dlqId;
+                    }
+
+                    public function getSource(): string
+                    {
+                        return $this->source;
+                    }
+
+                    public function setSource(string $source): self
+                    {
+                        $this->source = $source;
+                        return $this;
+                    }
+
+                    public function getCarrierCode(): ?string
+                    {
+                        return $this->carrierCode;
+                    }
+
+                    public function setCarrierCode(?string $carrierCode): self
+                    {
+                        $this->carrierCode = $carrierCode;
+                        return $this;
+                    }
+
+                    public function getShipmentId(): ?int
+                    {
+                        return $this->shipmentId;
+                    }
+
+                    public function setShipmentId(?int $shipmentId): self
+                    {
+                        $this->shipmentId = $shipmentId;
+                        return $this;
+                    }
+
+                    public function getPayload(): array
+                    {
+                        return $this->payload;
+                    }
+
+                    public function setPayload(array $payload): self
+                    {
+                        $this->payload = $payload;
+                        return $this;
+                    }
+
+                    public function getErrorClass(): string
+                    {
+                        return $this->errorClass;
+                    }
+
+                    public function setErrorClass(string $errorClass): self
+                    {
+                        $this->errorClass = $errorClass;
+                        return $this;
+                    }
+
+                    public function getErrorMessage(): string
+                    {
+                        return $this->errorMessage;
+                    }
+
+                    public function setErrorMessage(string $errorMessage): self
+                    {
+                        $this->errorMessage = $errorMessage;
+                        return $this;
+                    }
+
+                    public function getFailedAt(): ?string
+                    {
+                        return $this->failedAt;
+                    }
+
+                    public function getReprocessedAt(): ?string
+                    {
+                        return $this->reprocessedAt;
+                    }
+
+                    public function setReprocessedAt(?string $timestamp): self
+                    {
+                        $this->reprocessedAt = $timestamp;
+                        return $this;
+                    }
+
+                    public function getReprocessAttempts(): int
+                    {
+                        return $this->reprocessAttempts;
+                    }
+
+                    public function setReprocessAttempts(int $attempts): self
+                    {
+                        $this->reprocessAttempts = $attempts;
+                        return $this;
+                    }
+                };
+            }
+        }
+    }
+}
+
 // phpcs:enable

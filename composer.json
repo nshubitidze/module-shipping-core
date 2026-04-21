@@ -2,8 +2,22 @@
     "name": "shubo/module-shipping-core",
     "description": "Carrier-agnostic shipping orchestration framework for Magento 2 marketplaces and multi-vendor stores",
     "type": "magento2-module",
+    "version": "0.10.0",
     "license": "Apache-2.0",
     "keywords": ["magento2", "shipping", "carrier", "marketplace", "logistics", "cod", "georgia"],
+    "authors": [
+        {
+            "name": "Shubo",
+            "email": "dev@shubo.ge",
+            "homepage": "https://github.com/nshubitidze/module-shipping-core",
+            "role": "Maintainer"
+        }
+    ],
+    "homepage": "https://github.com/nshubitidze/module-shipping-core",
+    "support": {
+        "issues": "https://github.com/nshubitidze/module-shipping-core/issues",
+        "source": "https://github.com/nshubitidze/module-shipping-core"
+    },
     "minimum-stability": "stable",
     "require": {
         "php": ">=8.1",

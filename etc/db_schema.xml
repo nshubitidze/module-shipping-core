@@ -432,4 +432,53 @@
         </constraint>
     </table>
 
+    <!-- ================================================================
+         6.9 shubo_shipping_dead_letter
+         Durable dead-letter store for dispatch + webhook + poll failures
+         that exceeded their retry budget. Operators reprocess via
+         `bin/magento shubo:shipping:dlq:reprocess <id>`.
+         ================================================================ -->
+    <table name="shubo_shipping_dead_letter" resource="default" engine="innodb"
+           comment="Dead Letter — durable sink for retry-exhausted shipping failures">
+        <column xsi:type="int" name="dlq_id" unsigned="true" nullable="false"
+                identity="true" comment="DLQ entry ID"/>
+        <column xsi:type="varchar" name="source" nullable="false" length="32"
+                comment="Failure source: dispatch | webhook | poll | reconcile"/>
+        <column xsi:type="varchar" name="carrier_code" nullable="true" length="40"
+                comment="Carrier code when known; NULL for unknown-carrier webhooks"/>
+        <column xsi:type="int" name="shipment_id" unsigned="true" nullable="true"
+                comment="FK to shubo_shipping_shipment when known"/>
+        <column xsi:type="mediumtext" name="payload_json" nullable="false"
+                comment="Serialized payload to replay (JSON)"/>
+        <column xsi:type="varchar" name="error_class" nullable="false" length="255"
+                comment="Exception class of the final failure"/>
+        <column xsi:type="text" name="error_message" nullable="false"
+                comment="Final failure message"/>
+        <column xsi:type="timestamp" name="failed_at" nullable="false" default="CURRENT_TIMESTAMP"
+                comment="When the failure was recorded"/>
+        <column xsi:type="timestamp" name="reprocessed_at" nullable="true"
+                comment="When reprocess-from-DLQ succeeded; NULL while pending"/>
+        <column xsi:type="int" name="reprocess_attempts" unsigned="true" nullable="false" default="0"
+                comment="Manual reprocess attempt count"/>
+
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="dlq_id"/>
+        </constraint>
+        <constraint xsi:type="foreign" referenceId="SHUBO_SHIPPING_DEAD_LETTER_SHIPMENT_ID"
+                    table="shubo_shipping_dead_letter" column="shipment_id"
+                    referenceTable="shubo_shipping_shipment" referenceColumn="shipment_id"
+                    onDelete="SET NULL"/>
+
+        <index referenceId="SHUBO_SHIPPING_DEAD_LETTER_SOURCE_FAILED_AT" indexType="btree">
+            <column name="source"/>
+            <column name="failed_at"/>
+        </index>
+        <index referenceId="SHUBO_SHIPPING_DEAD_LETTER_CARRIER_CODE" indexType="btree">
+            <column name="carrier_code"/>
+        </index>
+        <index referenceId="SHUBO_SHIPPING_DEAD_LETTER_REPROCESSED_AT" indexType="btree">
+            <column name="reprocessed_at"/>
+        </index>
+    </table>
+
 </schema>
