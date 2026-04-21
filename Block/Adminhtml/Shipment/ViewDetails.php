@@ -26,6 +26,9 @@ use Shubo\ShippingCore\Controller\Adminhtml\Shipments\View as ViewController;
  */
 class ViewDetails extends Template
 {
+    /**
+     * @param array<string, mixed> $data
+     */
     public function __construct(
         Context $context,
         private readonly Registry $coreRegistry,
