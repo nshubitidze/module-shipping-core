@@ -13,14 +13,23 @@ use Magento\Framework\MessageQueue\PublisherInterface;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Shubo\ShippingCore\Api\Data\DeadLetterEntryInterface;
-use Shubo\ShippingCore\Api\Data\DeadLetterEntryInterfaceFactory;
 use Shubo\ShippingCore\Api\DeadLetterRepositoryInterface;
 use Shubo\ShippingCore\Model\Logging\StructuredLogger;
 use Shubo\ShippingCore\Model\Resilience\DeadLetterPublisher;
+use Shubo\ShippingCore\Test\Unit\Fake\InMemoryDeadLetterEntry;
+use Shubo\ShippingCore\Test\Unit\Fake\InMemoryDeadLetterEntryFactory;
 
 /**
  * Unit tests for the updated {@see DeadLetterPublisher} that writes a durable
  * DB row via the repository in addition to the legacy queue publish.
+ *
+ * BUG-SHIPPINGCORE-DLQ-TEST-1 fix: factory collaboration is done through the
+ * named fake {@see InMemoryDeadLetterEntryFactory} which hands out
+ * {@see InMemoryDeadLetterEntry} instances. This keeps the test hermetic —
+ * it does not depend on the Magento-generated
+ * {@see \Shubo\ShippingCore\Api\Data\DeadLetterEntryInterfaceFactory} class
+ * being present at autoload time, which fails inside the duka container when
+ * `generated/code/` has been wiped.
  */
 class DeadLetterPublisherTest extends TestCase
 {
@@ -30,8 +39,7 @@ class DeadLetterPublisherTest extends TestCase
     /** @var DeadLetterRepositoryInterface&MockObject */
     private DeadLetterRepositoryInterface $repository;
 
-    /** @var DeadLetterEntryInterfaceFactory&MockObject */
-    private DeadLetterEntryInterfaceFactory $entryFactory;
+    private InMemoryDeadLetterEntryFactory $entryFactory;
 
     /** @var StructuredLogger&MockObject */
     private StructuredLogger $logger;
@@ -42,9 +50,15 @@ class DeadLetterPublisherTest extends TestCase
     {
         $this->queuePublisher = $this->createMock(PublisherInterface::class);
         $this->repository = $this->createMock(DeadLetterRepositoryInterface::class);
-        $this->entryFactory = $this->createMock(DeadLetterEntryInterfaceFactory::class);
+        $this->entryFactory = new InMemoryDeadLetterEntryFactory();
         $this->logger = $this->createMock(StructuredLogger::class);
 
+        // The SUT's constructor types $entryFactory as
+        // DeadLetterEntryInterfaceFactory. Our named fake EXTENDS that real
+        // (hand-written) class so PHP's type system passes, and `create()`
+        // returns a concrete InMemoryDeadLetterEntry whose state we can
+        // assert on directly rather than through chained setter mock
+        // expectations.
         $this->publisher = new DeadLetterPublisher(
             $this->queuePublisher,
             $this->repository,
@@ -55,45 +69,13 @@ class DeadLetterPublisherTest extends TestCase
 
     public function testPublishWritesDurableRowAndPublishesToQueue(): void
     {
-        $entry = $this->createMock(DeadLetterEntryInterface::class);
-        $entry->expects($this->once())
-            ->method('setSource')
-            ->with(DeadLetterEntryInterface::SOURCE_DISPATCH)
-            ->willReturnSelf();
-        $entry->expects($this->once())
-            ->method('setCarrierCode')
-            ->with('fake')
-            ->willReturnSelf();
-        $entry->expects($this->once())
-            ->method('setShipmentId')
-            ->with(42)
-            ->willReturnSelf();
-        $entry->expects($this->once())
-            ->method('setPayload')
-            ->with($this->callback(function (array $payload): bool {
-                return $payload['shipment_id'] === 42
-                    && $payload['carrier_code'] === 'fake'
-                    && $payload['operation'] === 'createShipment'
-                    && $payload['reason'] === 'boom';
-            }))
-            ->willReturnSelf();
-        $entry->expects($this->once())
-            ->method('setErrorClass')
-            ->with(\RuntimeException::class)
-            ->willReturnSelf();
-        $entry->expects($this->once())
-            ->method('setErrorMessage')
-            ->with('createShipment: boom')
-            ->willReturnSelf();
-
-        $this->entryFactory->expects($this->once())
-            ->method('create')
-            ->willReturn($entry);
-
+        $savedEntry = null;
         $this->repository->expects($this->once())
             ->method('save')
-            ->with($entry)
-            ->willReturn($entry);
+            ->willReturnCallback(function (DeadLetterEntryInterface $e) use (&$savedEntry): DeadLetterEntryInterface {
+                $savedEntry = $e;
+                return $e;
+            });
 
         $this->queuePublisher->expects($this->once())
             ->method('publish')
@@ -103,19 +85,23 @@ class DeadLetterPublisherTest extends TestCase
             );
 
         $this->publisher->publish(42, 'fake', 'createShipment', 'boom');
+
+        self::assertInstanceOf(InMemoryDeadLetterEntry::class, $savedEntry);
+        self::assertSame(DeadLetterEntryInterface::SOURCE_DISPATCH, $savedEntry->getSource());
+        self::assertSame('fake', $savedEntry->getCarrierCode());
+        self::assertSame(42, $savedEntry->getShipmentId());
+        self::assertSame(\RuntimeException::class, $savedEntry->getErrorClass());
+        self::assertSame('createShipment: boom', $savedEntry->getErrorMessage());
+
+        $payload = $savedEntry->getPayload();
+        self::assertSame(42, $payload['shipment_id']);
+        self::assertSame('fake', $payload['carrier_code']);
+        self::assertSame('createShipment', $payload['operation']);
+        self::assertSame('boom', $payload['reason']);
     }
 
     public function testPublishStillPublishesToQueueWhenDurableSaveThrows(): void
     {
-        $entry = $this->createMock(DeadLetterEntryInterface::class);
-        $entry->method('setSource')->willReturnSelf();
-        $entry->method('setCarrierCode')->willReturnSelf();
-        $entry->method('setShipmentId')->willReturnSelf();
-        $entry->method('setPayload')->willReturnSelf();
-        $entry->method('setErrorClass')->willReturnSelf();
-        $entry->method('setErrorMessage')->willReturnSelf();
-
-        $this->entryFactory->method('create')->willReturn($entry);
         $this->repository->method('save')
             ->willThrowException(new CouldNotSaveException(__('db outage')));
 
@@ -133,16 +119,8 @@ class DeadLetterPublisherTest extends TestCase
 
     public function testPublishSwallowsQueuePublishFailure(): void
     {
-        $entry = $this->createMock(DeadLetterEntryInterface::class);
-        $entry->method('setSource')->willReturnSelf();
-        $entry->method('setCarrierCode')->willReturnSelf();
-        $entry->method('setShipmentId')->willReturnSelf();
-        $entry->method('setPayload')->willReturnSelf();
-        $entry->method('setErrorClass')->willReturnSelf();
-        $entry->method('setErrorMessage')->willReturnSelf();
-
-        $this->entryFactory->method('create')->willReturn($entry);
-        $this->repository->method('save')->willReturn($entry);
+        $this->repository->method('save')
+            ->willReturnCallback(static fn (DeadLetterEntryInterface $e): DeadLetterEntryInterface => $e);
 
         $this->queuePublisher->method('publish')
             ->willThrowException(new \RuntimeException('broker down'));
@@ -155,41 +133,33 @@ class DeadLetterPublisherTest extends TestCase
 
     public function testPublishConvertsEmptyCarrierCodeToNull(): void
     {
-        $entry = $this->createMock(DeadLetterEntryInterface::class);
-        $entry->method('setSource')->willReturnSelf();
-        $entry->expects($this->once())
-            ->method('setCarrierCode')
-            ->with(null)
-            ->willReturnSelf();
-        $entry->method('setShipmentId')->willReturnSelf();
-        $entry->method('setPayload')->willReturnSelf();
-        $entry->method('setErrorClass')->willReturnSelf();
-        $entry->method('setErrorMessage')->willReturnSelf();
-
-        $this->entryFactory->method('create')->willReturn($entry);
-        $this->repository->method('save')->willReturn($entry);
+        $savedEntry = null;
+        $this->repository->method('save')
+            ->willReturnCallback(function (DeadLetterEntryInterface $e) use (&$savedEntry): DeadLetterEntryInterface {
+                $savedEntry = $e;
+                return $e;
+            });
         $this->queuePublisher->method('publish');
 
         $this->publisher->publish(0, '', 'op', 'reason');
+
+        self::assertInstanceOf(InMemoryDeadLetterEntry::class, $savedEntry);
+        self::assertNull($savedEntry->getCarrierCode(), 'empty string carrier_code must normalise to null');
     }
 
     public function testPublishConvertsZeroShipmentIdToNull(): void
     {
-        $entry = $this->createMock(DeadLetterEntryInterface::class);
-        $entry->method('setSource')->willReturnSelf();
-        $entry->method('setCarrierCode')->willReturnSelf();
-        $entry->expects($this->once())
-            ->method('setShipmentId')
-            ->with(null)
-            ->willReturnSelf();
-        $entry->method('setPayload')->willReturnSelf();
-        $entry->method('setErrorClass')->willReturnSelf();
-        $entry->method('setErrorMessage')->willReturnSelf();
-
-        $this->entryFactory->method('create')->willReturn($entry);
-        $this->repository->method('save')->willReturn($entry);
+        $savedEntry = null;
+        $this->repository->method('save')
+            ->willReturnCallback(function (DeadLetterEntryInterface $e) use (&$savedEntry): DeadLetterEntryInterface {
+                $savedEntry = $e;
+                return $e;
+            });
         $this->queuePublisher->method('publish');
 
         $this->publisher->publish(0, 'fake', 'op', 'reason');
+
+        self::assertInstanceOf(InMemoryDeadLetterEntry::class, $savedEntry);
+        self::assertNull($savedEntry->getShipmentId(), 'shipment_id=0 must normalise to null');
     }
 }
