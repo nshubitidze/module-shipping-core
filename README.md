@@ -78,6 +78,14 @@ A carrier adapter module implements:
 
 A full adapter-authoring guide ships with v1.0.0.
 
+## Available adapters
+
+| Module | Status | Scope | Link |
+|---|---|---|---|
+| [`shubo/module-shipping-shippo`](https://github.com/nshubitidze/module-shipping-shippo) | **Live (first real adapter)** | International — aggregates USPS, UPS, FedEx, DHL, and regional carriers through the Shippo API. Rate quote, label purchase, webhook signature verification, poller fallback. Test-mode is the default. | [repo](https://github.com/nshubitidze/module-shipping-shippo) |
+| `shubo/module-shipping-wolt-drive` | Deferred | Tbilisi same-day + on-demand delivery via Wolt Drive. Blocked on Wolt sales-led credential signup (3–10 days); no shipping-core changes needed when the adapter lands. | — |
+| `shubo/module-shipping-trackings` | Planned | Georgia-domestic courier aggregator; poll-only (no webhooks). | — |
+
 ## License
 
 Apache-2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
