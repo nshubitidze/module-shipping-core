@@ -27,6 +27,8 @@ class RateOption
         public readonly string $serviceLevel,
         public readonly string $rationale,
         public readonly ?string $pudoExternalId = null,
+        /** @var array<string, scalar>|null Carrier-specific opaque data (e.g. Shippo rate_object_id). */
+        public readonly ?array $adapterMetadata = null,
     ) {
     }
 }

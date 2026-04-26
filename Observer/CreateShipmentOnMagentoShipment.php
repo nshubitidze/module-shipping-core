@@ -232,6 +232,7 @@ class CreateShipmentOnMagentoShipment implements ObserverInterface
             metadata: [
                 'magento_shipment_id' => $magentoShipmentId,
                 'order_increment_id' => (string)($order->getIncrementId() ?? ''),
+                'shippo_rate_object_id' => (string)($order->getData('shippo_rate_object_id') ?? ''),
             ],
         );
     }
